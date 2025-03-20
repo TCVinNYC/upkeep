@@ -1,206 +1,131 @@
-// lib/src/services/auth_service.dart
-
 import 'dart:async';
+import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
-import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:logger/logger.dart';
-import '../models/user_profile.dart'; // Define this model as per your requirements
-import '../utils/store.dart'; // Update this to handle local storage
+import 'package:logging/logging.dart';
+import 'package:upkeep_mobile/domain/models/store.model.dart';
+import 'package:upkeep_mobile/entities/store.entity.dart';
+import 'package:upkeep_mobile/interfaces/auth.interface.dart';
+import 'package:upkeep_mobile/interfaces/auth_api.interface.dart';
+import 'package:upkeep_mobile/models/auth/login_response.model.dart';
+import 'package:upkeep_mobile/providers/api.provider.dart';
+import 'package:upkeep_mobile/repositories/auth.repository.dart';
+import 'package:upkeep_mobile/repositories/auth_api.repository.dart';
+import 'package:upkeep_mobile/services/api.service.dart';
 
-final authServiceProvider = Provider<AuthService>((ref) => AuthService(ref));
+final authServiceProvider = Provider(
+  (ref) => AuthService(
+    ref.watch(authApiRepositoryProvider),
+    ref.watch(authRepositoryProvider),
+    ref.watch(apiServiceProvider),
+  ),
+);
 
 class AuthService {
-  final ProviderRef ref;
-  final fb_auth.FirebaseAuth _firebaseAuth = fb_auth.FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final Logger _log = Logger();
+  final IAuthApiRepository _authApiRepository;
+  final IAuthRepository _authRepository;
+  final ApiService _apiService;
 
-  AuthService(this.ref);
+  final _log = Logger("AuthService");
 
-  /// Registers a new user with email and password
-  Future<fb_auth.User?> registerWithEmail({
-    required String email,
-    required String password,
-    required String name,
-    required int age,
-    required String phoneNumber,
-    required String emergencyContact,
-    required String address,
-  }) async {
+  AuthService(
+    this._authApiRepository,
+    this._authRepository,
+    this._apiService,
+  );
+
+  /// Validates the provided server URL by resolving and setting the endpoint.
+  /// Also sets the device info header and stores the valid URL.
+  ///
+  /// [url] - The server URL to be validated.
+  ///
+  /// Returns the validated and resolved server URL as a [String].
+  ///
+  /// Throws an exception if the URL cannot be resolved or set.
+  Future<String> validateServerUrl(String url) async {
+    final validUrl = await _apiService.resolveAndSetEndpoint(url);
+    await _apiService.setDeviceInfoHeader();
+    Store.put(StoreKey.serverUrl, validUrl);
+
+    return validUrl;
+  }
+
+  Future<bool> validateAuxiliaryServerUrl(String url) async {
+    final httpclient = HttpClient();
+    bool isValid = false;
+
     try {
-      fb_auth.UserCredential userCredential = await _firebaseAuth
-          .createUserWithEmailAndPassword(email: email, password: password);
+      final uri = Uri.parse('$url/users/me');
+      final request = await httpclient.getUrl(uri);
 
-      fb_auth.User? user = userCredential.user;
+      // add auth token + any configured custom headers
+      final customHeaders = ApiService.getRequestHeaders();
+      customHeaders.forEach((key, value) {
+        request.headers.add(key, value);
+      });
 
-      if (user != null) {
-        // Create a user profile in Firestore
-        await _firestore.collection('users').doc(user.uid).set({
-          'name': name,
-          'age': age,
-          'phoneNumber': phoneNumber,
-          'emergencyContact': emergencyContact,
-          'address': address,
-          'isAdmin': false, // Default role
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-
-        // Optionally, send email verification
-        await user.sendEmailVerification();
+      final response = await request.close();
+      if (response.statusCode == 200) {
+        isValid = true;
       }
-
-      return user;
-    } catch (e, stackTrace) {
-      _log.e("Error during email registration", e, stackTrace);
-      rethrow;
+    } catch (error) {
+      _log.severe("Error validating auxiliary endpoint", error);
+    } finally {
+      httpclient.close();
     }
+
+    return isValid;
   }
 
-  /// Signs in a user with email and password
-  Future<fb_auth.User?> loginWithEmail({
-    required String email,
-    required String password,
-  }) async {
-    try {
-      fb_auth.UserCredential userCredential = await _firebaseAuth
-          .signInWithEmailAndPassword(email: email, password: password);
-
-      fb_auth.User? user = userCredential.user;
-
-      if (user != null && !user.emailVerified) {
-        // Optionally, prompt user to verify email
-        await user.sendEmailVerification();
-        throw Exception('Email not verified. Verification email sent.');
-      }
-
-      return user;
-    } catch (e, stackTrace) {
-      _log.e("Error during email login", e, stackTrace);
-      rethrow;
-    }
+  Future<LoginResponse> login(String email, String password) {
+    return _authApiRepository.login(email, password);
   }
 
-  /// Initiates phone number authentication by sending an SMS code
-  Future<void> loginWithPhone({
-    required String phoneNumber,
-    required Function(fb_auth.PhoneAuthCredential) onVerificationCompleted,
-    required Function(fb_auth.PhoneAuthCredential) onVerificationFailed,
-    required Function(String, int?) onCodeSent,
-    required Function(String) onCodeAutoRetrievalTimeout,
-  }) async {
-    try {
-      await _firebaseAuth.verifyPhoneNumber(
-        phoneNumber: phoneNumber,
-        timeout: const Duration(seconds: 60),
-        verificationCompleted: onVerificationCompleted,
-        verificationFailed: (fb_auth.FirebaseAuthException e) {
-          _log.e("Phone verification failed", e);
-          onVerificationFailed(fb_auth.PhoneAuthProvider.credential(
-              verificationId: '', smsCode: '')); // Handle appropriately
-        },
-        codeSent: onCodeSent,
-        codeAutoRetrievalTimeout: onCodeAutoRetrievalTimeout,
-      );
-    } catch (e, stackTrace) {
-      _log.e("Error during phone login", e, stackTrace);
-      rethrow;
-    }
-  }
-
-  /// Completes phone number authentication with SMS code
-  Future<fb_auth.User?> verifyPhoneCode({
-    required String verificationId,
-    required String smsCode,
-  }) async {
-    try {
-      fb_auth.PhoneAuthCredential credential =
-          fb_auth.PhoneAuthProvider.credential(
-        verificationId: verificationId,
-        smsCode: smsCode,
-      );
-
-      fb_auth.UserCredential userCredential =
-          await _firebaseAuth.signInWithCredential(credential);
-
-      return userCredential.user;
-    } catch (e, stackTrace) {
-      _log.e("Error verifying phone code", e, stackTrace);
-      rethrow;
-    }
-  }
-
-  /// Logs out the current user
+  /// Performs user logout operation by making a server request and clearing local data.
+  ///
+  /// This method attempts to log out the user through the authentication API repository.
+  /// If the server request fails, the error is logged but local data is still cleared.
+  /// The local data cleanup is guaranteed to execute regardless of the server request outcome.
+  ///
+  /// Throws any unhandled exceptions from the API request or local data clearing operations.
   Future<void> logout() async {
     try {
-      await _firebaseAuth.signOut();
-      await _clearLocalData();
-    } catch (e, stackTrace) {
-      _log.e("Error during logout", e, stackTrace);
-      rethrow;
+      await _authApiRepository.logout();
+    } catch (error, stackTrace) {
+      _log.severe("Error logging out", error, stackTrace);
+    } finally {
+      await clearLocalData().catchError((error, stackTrace) {
+        _log.severe("Error clearing local data", error, stackTrace);
+      });
     }
   }
 
-  /// Clears local authentication-related data
-  Future<void> _clearLocalData() async {
+  /// Clears all local authentication-related data.
+  ///
+  /// This method performs a concurrent deletion of:
+  /// - Authentication repository data
+  /// - Current user information
+  /// - Access token
+  /// - Asset ETag
+  ///
+  /// All deletions are executed in parallel using [Future.wait].
+  Future<void> clearLocalData() {
+    return Future.wait([
+      _authRepository.clearLocalData(),
+      Store.delete(StoreKey.currentUser),
+      Store.delete(StoreKey.accessToken),
+      Store.delete(StoreKey.autoEndpointSwitching),
+      Store.delete(StoreKey.preferredWifiName),
+      Store.delete(StoreKey.localEndpoint),
+      Store.delete(StoreKey.externalEndpointList),
+    ]);
+  }
+
+  Future<void> changePassword(String newPassword) {
     try {
-      await Store.delete(StoreKey.currentUser);
-      await Store.delete(StoreKey.accessToken);
-      // Add other local data deletions as needed
-    } catch (e, stackTrace) {
-      _log.e("Error clearing local data", e, stackTrace);
-      rethrow;
-    }
-  }
-
-  /// Changes the user's password
-  Future<void> changePassword(String newPassword) async {
-    try {
-      fb_auth.User? user = _firebaseAuth.currentUser;
-      if (user != null) {
-        await user.updatePassword(newPassword);
-      } else {
-        throw Exception("No user is currently signed in.");
-      }
-    } catch (e, stackTrace) {
-      _log.e("Error changing password", e, stackTrace);
-      rethrow;
-    }
-  }
-
-  /// Retrieves the current user
-  fb_auth.User? getCurrentUser() {
-    return _firebaseAuth.currentUser;
-  }
-
-  /// Stream to listen to authentication state changes
-  Stream<fb_auth.User?> authStateChanges() {
-    return _firebaseAuth.authStateChanges();
-  }
-
-  /// Retrieves the user's profile from Firestore
-  Future<UserProfile?> getUserProfile(String uid) async {
-    try {
-      DocumentSnapshot doc =
-          await _firestore.collection('users').doc(uid).get();
-      if (doc.exists) {
-        return UserProfile.fromMap(doc.data() as Map<String, dynamic>, doc.id);
-      }
-      return null;
-    } catch (e, stackTrace) {
-      _log.e("Error fetching user profile", e, stackTrace);
-      return null;
-    }
-  }
-
-  /// Updates the user's profile in Firestore
-  Future<void> updateUserProfile(String uid, Map<String, dynamic> data) async {
-    try {
-      await _firestore.collection('users').doc(uid).update(data);
-    } catch (e, stackTrace) {
-      _log.e("Error updating user profile", e, stackTrace);
+      return _authApiRepository.changePassword(newPassword);
+    } catch (error, stackTrace) {
+      _log.severe("Error changing password", error, stackTrace);
       rethrow;
     }
   }

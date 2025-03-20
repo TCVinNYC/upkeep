@@ -134,6 +134,12 @@
       "languageVersion": "2.12"
     },
     {
+      "name": "cli_launcher",
+      "rootUri": "file:///Users/prince/.pub-cache/hosted/pub.dev/cli_launcher-0.3.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.18"
+    },
+    {
       "name": "cli_util",
       "rootUri": "file:///Users/prince/.pub-cache/hosted/pub.dev/cli_util-0.4.2",
       "packageUri": "lib/",
@@ -230,6 +236,18 @@
       "languageVersion": "2.18"
     },
     {
+      "name": "dio",
+      "rootUri": "file:///Users/prince/.pub-cache/hosted/pub.dev/dio-5.8.0+1",
+      "packageUri": "lib/",
+      "languageVersion": "2.18"
+    },
+    {
+      "name": "dio_web_adapter",
+      "rootUri": "file:///Users/prince/.pub-cache/hosted/pub.dev/dio_web_adapter-2.1.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.3"
+    },
+    {
       "name": "easy_localization",
       "rootUri": "file:///Users/prince/.pub-cache/hosted/pub.dev/easy_localization-3.0.7",
       "packageUri": "lib/",
@@ -324,6 +342,12 @@
       "rootUri": "file:///Users/prince/development/flutter/packages/flutter_test",
       "packageUri": "lib/",
       "languageVersion": "3.3"
+    },
+    {
+      "name": "flutter_udid",
+      "rootUri": "file:///Users/prince/.pub-cache/hosted/pub.dev/flutter_udid-4.0.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
     },
     {
       "name": "flutter_web_plugins",
@@ -514,6 +538,30 @@
     {
       "name": "mocktail",
       "rootUri": "file:///Users/prince/.pub-cache/hosted/pub.dev/mocktail-1.0.4",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
+      "name": "openapi",
+      "rootUri": "../openapi",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
+      "name": "openapi_generator",
+      "rootUri": "file:///Users/prince/.pub-cache/hosted/pub.dev/openapi_generator-6.1.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.15"
+    },
+    {
+      "name": "openapi_generator_annotations",
+      "rootUri": "file:///Users/prince/.pub-cache/hosted/pub.dev/openapi_generator_annotations-6.1.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
+      "name": "openapi_generator_cli",
+      "rootUri": "file:///Users/prince/.pub-cache/hosted/pub.dev/openapi_generator_cli-6.1.0",
       "packageUri": "lib/",
       "languageVersion": "2.12"
     },
@@ -956,13 +1004,13 @@
       "languageVersion": "3.4"
     },
     {
-      "name": "upkeep",
+      "name": "upkeep_mobile",
       "rootUri": "../",
       "packageUri": "lib/",
       "languageVersion": "3.6"
     }
   ],
-  "generated": "2025-02-01T11:28:24.670097Z",
+  "generated": "2025-03-19T13:59:35.853848Z",
   "generator": "pub",
   "generatorVersion": "3.6.1",
   "flutterRoot": "file:///Users/prince/development/flutter",

@@ -1,17 +1,18 @@
 import 'dart:io';
 
 import 'package:auto_route/auto_route.dart';
-import 'package:upkeep/routes/router.dart';
-import 'package:upkeep/entities/store.entity.dart';
-import 'package:upkeep/services/api.service.dart';
+import 'package:upkeep_mobile/domain/models/store.model.dart';
+import 'package:upkeep_mobile/domain/services/store.service.dart';
+import 'package:upkeep_mobile/entities/store.entity.dart';
+import 'package:upkeep_mobile/routes/router.dart';
+import 'package:upkeep_mobile/services/api.service.dart';
 import 'package:logging/logging.dart';
-// import 'package:openapi/api.dart';
+import 'package:openapi/api.dart';
 
 class AuthGuard extends AutoRouteGuard {
-  // final ApiService _apiService;
+  final ApiService _apiService;
   final _log = Logger("AuthGuard");
-  // AuthGuard(this._apiService);
-  AuthGuard();
+  AuthGuard(this._apiService);
   @override
   void onNavigation(NavigationResolver resolver, StackRouter router) async {
     resolver.next(true);

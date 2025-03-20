@@ -1,10 +1,9 @@
-import 'package:flutter/foundation.dart';
+import 'dart:async';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:upkeep/providers/auth.provider.dart';
-import 'package:upkeep/providers/notification_permission.provider.dart';
-import 'package:upkeep/providers/tab.provider.dart';
-import 'package:upkeep/services/upkeep_logger.service.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:isar/isar.dart';
+import 'package:upkeep_mobile/domain/services/log.service.dart';
+import 'package:upkeep_mobile/providers/auth.provider.dart';
+import 'package:upkeep_mobile/providers/notification_permission.provider.dart';
 
 enum AppLifeCycleEnum {
   active,
@@ -37,34 +36,40 @@ class AppLifeCycleNotifier extends StateNotifier<AppLifeCycleEnum> {
     // Needs to be logged in
     if (isAuthenticated) {
       // switch endpoint if needed
-      final endpoint =
-          await _ref.read(authProvider.notifier).setOpenApiServiceEndpoint();
-      if (kDebugMode) {
-        debugPrint("Using server URL: $endpoint");
-      }
+      // final endpoint =
+      //     await _ref.read(authProvider.notifier).setOpenApiServiceEndpoint();
+      // if (kDebugMode) {
+      //   debugPrint("Using server URL: $endpoint");
+      // }
 
-      switch (_ref.read(tabProvider)) {
-        case TabEnum.home:
-          await _ref.read(assetProvider.notifier).getAllAsset();
-          break;
-        case TabEnum.search:
-          // nothing to do
-          break;
+      // await _ref.read(serverInfoProvider.notifier).getServerVersion();
 
-        case TabEnum.albums:
-          await _ref.read(albumProvider.notifier).refreshRemoteAlbums();
-          break;
-        case TabEnum.library:
-          // nothing to do
-          break;
-      }
+      // switch (_ref.read(tabProvider)) {
+      //   case TabEnum.home:
+      //     await _ref.read(assetProvider.notifier).getAllAsset();
+      //     break;
+      //   case TabEnum.search:
+      //     // nothing to do
+      //     break;
+
+      //   case TabEnum.albums:
+      //     await _ref.read(albumProvider.notifier).refreshRemoteAlbums();
+      //     break;
+      //   case TabEnum.library:
+      //     // nothing to do
+      //     break;
+      // }
     }
 
     await _ref
         .read(notificationPermissionProvider.notifier)
         .getNotificationPermission();
 
-    _ref.invalidate(memoryFutureProvider);
+    // await _ref
+    //     .read(galleryPermissionNotifier.notifier)
+    //     .getGalleryPermissionStatus();
+
+    // _ref.invalidate(memoryFutureProvider);
   }
 
   void handleAppInactivity() {
@@ -76,12 +81,13 @@ class AppLifeCycleNotifier extends StateNotifier<AppLifeCycleEnum> {
     state = AppLifeCycleEnum.paused;
     _wasPaused = true;
 
-    UpkeepLogger().flush();
+    LogService.I.flush();
   }
 
-  void handleAppDetached() {
+  Future<void> handleAppDetached() async {
     state = AppLifeCycleEnum.detached;
-    // no guarantee this is called at all
+    LogService.I.flush();
+    await Isar.getInstance()?.close();
   }
 
   void handleAppHidden() {

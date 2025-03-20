@@ -3,36 +3,41 @@ import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:logging/logging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:upkeep/constants/locales.dart';
-import 'package:upkeep/providers/app_life_cycle.provider.dart';
-import 'package:upkeep/providers/locale.provider.dart';
-import 'package:upkeep/routes/router.dart';
-import 'package:upkeep/routes/tab_navigation_observer.dart';
-import 'package:upkeep/services/upkeep_logger.service.dart';
-// import 'package:immich_mobile/providers/theme.provider.dart';
-// import 'package:immich_mobile/routing/tab_navigation_observer.dart';
-// import 'package:immich_mobile/entities/logger_message.entity.dart';
-// import 'package:immich_mobile/entities/store.entity.dart';
-// import 'package:immich_mobile/entities/user.entity.dart';
-// import 'package:immich_mobile/services/immich_logger.service.dart';
-// import 'package:immich_mobile/services/local_notification.service.dart';
-// import 'package:immich_mobile/theme/theme_data.dart';
+import 'package:upkeep_mobile/constants/locales.dart';
+import 'package:upkeep_mobile/extensions/build_context_extensions.dart';
+import 'package:upkeep_mobile/providers/app_life_cycle.provider.dart';
+import 'package:upkeep_mobile/providers/db.provider.dart';
+import 'package:upkeep_mobile/providers/infrastructure/db.provider.dart';
+import 'package:upkeep_mobile/providers/locale.provider.dart';
+import 'package:upkeep_mobile/providers/theme.provider.dart';
+import 'package:upkeep_mobile/routes/router.dart';
+import 'package:upkeep_mobile/routes/tab_navigation_observer.dart';
+// import 'package:upkeep_mobile/theme/dynamic_theme.dart';
+// import 'package:upkeep_mobile/theme/theme_data.dart';
+import 'package:upkeep_mobile/utils/bootstrap.dart';
+import 'package:upkeep_mobile/utils/http_ssl_cert_override.dart';
+import 'package:upkeep_mobile/utils/migration.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:logging/logging.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  // final db = await loadDb();
+  final db = await Bootstrap.initIsar();
+  await Bootstrap.initDomain(db);
   await initApp();
-  // await migrateDatabaseIfNeeded(db);
+  await migrateDatabaseIfNeeded(db);
+  HttpOverrides.global = HttpSSLCertOverride();
 
   runApp(
     ProviderScope(
-      // overrides: [dbProvider.overrideWithValue(db)],
+      overrides: [
+        dbProvider.overrideWithValue(db),
+        isarProvider.overrideWithValue(db),
+      ],
       child: const MainWidget(),
     ),
   );
@@ -40,6 +45,7 @@ void main() async {
 
 Future<void> initApp() async {
   await EasyLocalization.ensureInitialized();
+  await initializeDateFormatting();
 
   if (kReleaseMode && Platform.isAndroid) {
     try {
@@ -50,10 +56,9 @@ Future<void> initApp() async {
     }
   }
 
-  // Initialize RL Logger Service
-  UpkeepLogger();
+  // await DynamicTheme.fetchSystemPalette();
 
-  final log = Logger("RLErrorLogger");
+  final log = Logger("UpkeepErrorLogger");
 
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
@@ -70,19 +75,6 @@ Future<void> initApp() async {
     return true;
   };
 }
-
-// Future<Isar> loadDb() async {
-//   final dir = await getApplicationDocumentsDirectory();
-//   Isar db = await Isar.open(
-//     [
-//       UserSchema,
-//     ],
-//     directory: dir.path,
-//     maxSizeMiB: 1024,
-//   );
-//   Store.init(db);
-//   return db;
-// }
 
 class UpkeepApp extends ConsumerStatefulWidget {
   const UpkeepApp({super.key});
@@ -132,14 +124,13 @@ class UpkeepAppState extends ConsumerState<UpkeepApp>
     if (Platform.isAndroid) {
       // Android 8 does not support transparent app bars
       final info = await DeviceInfoPlugin().androidInfo;
-      // if (info.version.sdkInt <= 26) {
-      //   overlayStyle = context.isDarkTheme
-      //       ? SystemUiOverlayStyle.dark
-      //       : SystemUiOverlayStyle.light;
-      // }
+      if (info.version.sdkInt <= 26) {
+        overlayStyle = context.isDarkTheme
+            ? SystemUiOverlayStyle.dark
+            : SystemUiOverlayStyle.light;
+      }
     }
     SystemChrome.setSystemUIOverlayStyle(overlayStyle);
-    // await ref.read(localNotificationService).setup();
   }
 
   @override
@@ -166,7 +157,7 @@ class UpkeepAppState extends ConsumerState<UpkeepApp>
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
-    // final immichTheme = ref.watch(immichThemeProvider);
+    // final upkeepTheme = ref.watch(upkeepThemeProvider);
 
     return ProviderScope(
       overrides: [
@@ -178,15 +169,15 @@ class UpkeepAppState extends ConsumerState<UpkeepApp>
         locale: context.locale,
         debugShowCheckedModeBanner: true,
         home: MaterialApp.router(
-          title: 'Immich',
+          title: 'Upkeep',
           debugShowCheckedModeBanner: false,
-          // themeMode: ref.watch(immichThemeModeProvider),
+          themeMode: ref.watch(upkeepThemeModeProvider),
           // darkTheme: getThemeData(
-          //   colorScheme: immichTheme.dark,
+          //   colorScheme: upkeepTheme.dark,
           //   locale: context.locale,
           // ),
           // theme: getThemeData(
-          //   colorScheme: immichTheme.light,
+          //   colorScheme: upkeepTheme.light,
           //   locale: context.locale,
           // ),
           routeInformationParser: router.defaultRouteParser(),

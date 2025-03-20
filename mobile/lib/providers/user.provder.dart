@@ -1,33 +1,23 @@
 import 'dart:async';
 
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:upkeep/entities/store.entity.dart';
-import 'package:upkeep/entities/user.entity.dart';
-import 'package:upkeep/providers/api.provider.dart';
-import 'package:upkeep/providers/db.provider.dart';
-import 'package:upkeep/services/api.service.dart';
-import 'package:isar/isar.dart';
+import 'package:upkeep_mobile/domain/models/user.model.dart';
+import 'package:upkeep_mobile/domain/services/user.service.dart';
+import 'package:upkeep_mobile/providers/infrastructure/user.provider.dart';
 
-class CurrentUserProvider extends StateNotifier<User?> {
-  CurrentUserProvider(this._apiService) : super(null) {
-    state = Store.tryGet(StoreKey.currentUser);
+class CurrentUserProvider extends StateNotifier<UserDto?> {
+  CurrentUserProvider(this._userService) : super(null) {
+    state = _userService.tryGetMyUser();
     streamSub =
-        Store.watch(StoreKey.currentUser).listen((user) => state = user);
+        _userService.watchMyUser().listen((user) => state = user ?? state);
   }
 
-  final ApiService _apiService;
-  late final StreamSubscription<User?> streamSub;
+  final UserService _userService;
+  late final StreamSubscription<UserDto?> streamSub;
 
   refresh() async {
     try {
-      final user = await _apiService.usersApi.getMyUser();
-      final userPreferences = await _apiService.usersApi.getMyPreferences();
-      if (user != null) {
-        Store.put(
-          StoreKey.currentUser,
-          User.fromUserDto(user, userPreferences),
-        );
-      }
+      await _userService.refreshMyUser();
     } catch (_) {}
   }
 
@@ -39,8 +29,6 @@ class CurrentUserProvider extends StateNotifier<User?> {
 }
 
 final currentUserProvider =
-    StateNotifierProvider<CurrentUserProvider, User?>((ref) {
-  return CurrentUserProvider(
-    ref.watch(apiServiceProvider),
-  );
+    StateNotifierProvider<CurrentUserProvider, UserDto?>((ref) {
+  return CurrentUserProvider(ref.watch(userServiceProvider));
 });

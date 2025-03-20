@@ -1,5 +1,7 @@
 import 'package:auto_route/auto_route.dart';
+import 'package:flutter/foundation.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:upkeep_mobile/providers/infrastructure/user.provider.dart';
 
 class TabNavigationObserver extends AutoRouterObserver {
   /// Riverpod Instance
@@ -16,24 +18,12 @@ class TabNavigationObserver extends AutoRouterObserver {
   ) async {
     if (route.name == 'HomeRoute') {
       // Update user info
-      // try {
-      //   final userResponseDto =
-      //       await ref.read(apiServiceProvider).usersApi.getMyUser();
-      //   final userPreferences =
-      //       await ref.read(apiServiceProvider).usersApi.getMyPreferences();
-
-      //   if (userResponseDto == null) {
-      //     return;
-      //   }
-
-      //   Store.put(
-      //     StoreKey.currentUser,
-      //     User.fromUserDto(userResponseDto, userPreferences),
-      //   );
-      //   ref.read(serverInfoProvider.notifier).getServerVersion();
-      // } catch (e) {
-      //   debugPrint("Error refreshing user info $e");
-      // }
+      try {
+        ref.read(userServiceProvider).refreshMyUser();
+        // ref.read(serverInfoProvider.notifier).getServerVersion();
+      } catch (e) {
+        debugPrint("Error refreshing user info $e");
+      }
     }
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:upkeep/providers/app_settings.provider.dart';
-import 'package:upkeep/services/app_settings.service.dart';
+import 'package:upkeep_mobile/providers/app_settings.provider.dart';
+import 'package:upkeep_mobile/services/app_settings.service.dart';
 
 final hapticFeedbackProvider =
     StateNotifierProvider<HapticNotifier, void>((ref) {

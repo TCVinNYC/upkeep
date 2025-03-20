@@ -7,26 +7,43 @@ import {
 import { Exclude } from 'class-transformer';
 
 @Entity()
-export class User {
-  @PrimaryGeneratedColumn()
-  id: number;
+export class UserEntity {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
   @Column({ unique: true })
-  username: string;
+  email: string;
 
   @Column()
-  @Exclude()
+  @Exclude() // Do not expose hashed password
   password: string;
 
-  @Column({ default: 'user' })
-  role: string;
+  @Column()
+  name: string;
 
   @Column({ nullable: true })
-  email: string;
+  profileImagePath: string;
+
+  // Optional internal role field – global default is 'user'
+  @Column({ default: 'user' })
+  role: string;
 
   @CreateDateColumn()
   createdAt: Date;
 
   @Column({ nullable: true, type: 'timestamp' })
   lastLogin: Date;
+
+  @Column({ nullable: true, type: 'timestamp' })
+  updatedAt: Date;
+
+  @Column({ nullable: true, type: 'timestamp' })
+  deletedAt: Date | null;
+
+  // Additional metadata (preferences, etc.)
+  @Column({ type: 'json', nullable: true })
+  metadata: any;
+
+  @Column({ default: false })
+  shouldChangePassword: boolean;
 }

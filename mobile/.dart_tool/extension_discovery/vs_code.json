@@ -1,1 +1,1 @@
-{"version":2,"entries":[{"package":"upkeep","rootUri":"../","packageUri":"lib/"}]}
+{"version":2,"entries":[{"package":"openapi","rootUri":"../openapi/","packageUri":"lib/"},{"package":"upkeep_mobile","rootUri":"../","packageUri":"lib/"}]}
